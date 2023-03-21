@@ -160,6 +160,7 @@ class HashClassifier():
                 command = hashcatMode
             table.rows.append([rowID, hashType, hashcatMode, command])
             rowID += 1
+        table.columns.width = [rowID+2, len(max(self.classifications, key=len))+2, 10, len(self.submittedHash)+94]
         print(table)
 
 
