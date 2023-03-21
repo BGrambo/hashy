@@ -130,7 +130,7 @@ class HashClassifier():
 
     def clipBoard(self):
         userInput = input('Would you like to copy a command to the clipboard (Yy/Nn): ')
-        if 'y' in userInput.lower():
+        if userInput.lower() == 'y':
             userSelect = int(input('Which row would you like to send to the clipboard: '))
             if userSelect <= len(self.classifications):
                 hashcatMode = str(hashTypes[self.classifications[userSelect]]['hashcat'])
