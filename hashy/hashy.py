@@ -102,10 +102,13 @@ hashTypes = {
 }
 
 
-class HashClassifier():
+class HashClassifier:
     def __init__(self, submittedHash):
         self.submittedHash = submittedHash
         self.classifications = self.classify()
+
+        self.attackType = 0
+        self.wordList = '/usr/share/wordlists/rockyou.txt'
 
     def classify(self):
         classifications = []
@@ -143,8 +146,9 @@ class HashClassifier():
                 self.clipBoard()
 
     def command(self, submittedMode):
-        command = 'hashcat ' + '-m' + submittedMode + ' ' + '-a0' + ' ' + '$(echo ' + self.submittedHash \
-                  + ' > value.hash && echo value.hash)' + ' ' + '/usr/share/wordlists/rockyou.txt'
+        command = 'hashcat ' + '-m' + submittedMode + ' ' + '-a' + str(self.attackType) + ' ' + \
+                  '$(echo ' + self.submittedHash \
+                  + ' > value.hash && echo value.hash)' + ' ' + self.wordList
         return command
 
     def table(self):
