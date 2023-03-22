@@ -2,109 +2,13 @@ import regex as re
 import pyperclip
 from beautifultable import BeautifulTable
 
-hashTypes = {
-    'MD2': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': None
-    },
-    'MD4': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': 900
-    },
-    'MD5': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': 0
-    },
-    'SHA-0': {
-        'regex': r'^[a-f0-9]{40}$',
-        'hashcat': None
-    },
-    'SHA-1': {
-        'regex': r'^[a-f0-9]{40}$',
-        'hashcat': 100
-    },
-    'SHA-224': {
-        'regex': r'^[a-f0-9]{56}$',
-        'hashcat': 11700
-    },
-    'SHA-256': {
-        'regex': r'^[a-f0-9]{64}$',
-        'hashcat': 1400
-    },
-    'SHA-384': {
-        'regex': r'^[a-f0-9]{96}$',
-        'hashcat': 10800
-    },
-    'SHA-512': {
-        'regex': r'^[a-f0-9]{128}$',
-        'hashcat': 1700
-    },
-    'SHA-512/224': {
-        'regex': r'^[a-f0-9]{56}$',
-        'hashcat': None
-    },
-    'SHA-512/256': {
-        'regex': r'^[a-f0-9]{64}$',
-        'hashcat': None
-    },
-    'RIPEMD-128': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': None
-    },
-    'RIPEMD-160': {
-        'regex': r'^[a-f0-9]{40}$',
-        'hashcat': 6000
-    },
-    'RIPEMD-256': {
-        'regex': r'^[a-f0-9]{64}$',
-        'hashcat': None
-    },
-    'RIPEMD-320': {
-        'regex': r'^[a-f0-9]{80}$',
-        'hashcat': None
-    },
-    'Whirlpool': {
-        'regex': r'^[a-f0-9]{128}$',
-        'hashcat': 6100
-    },
-    'Tiger': {
-        'regex': r'^[a-f0-9]{48}$',
-        'hashcat': None
-    },
-    'GOST R 34.11-94': {
-        'regex': r'^[a-f0-9]{64}$',
-        'hashcat': 6900
-    },
-    'GOST R 34.11-2012 (Streebog)': {
-        'regex': r'^[a-f0-9]{64}$',
-        'hashcat': 11700
-    },
-    'LM hash (LAN Manager)': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': 3000
-    },
-    'NTLM hash (NT LAN Manager)': {
-        'regex': r'^[a-f0-9]{32}$',
-        'hashcat': 1000
-    },
-    'bcrypt': {
-        'regex': r'^\$2[ayb]?\$[0-9]{2}\$[A-Za-z0-9./]{53}$',
-        'hashcat': 3200
-    },
-    'scrypt': {
-        'regex': None,
-        'hashcat': 8900
-    },
-    'Argon2': {
-        'regex': r'^\$argon2[id]?\$v=[0-9]+\$m=[0-9]+,t=[0-9]+,p=[0-9]+\$[A-Za-z0-9+/]+\$[A-Za-z0-9+/]{43}$',
-        'hashcat': 9700
-    },
-}
+import hashLibrary
+hashTypes = hashLibrary.hashTypes
 
 
 class HashClassifier:
     def __init__(self, submittedHash):
-        self.submittedHash = submittedHash
+        self.submittedHash = submittedHash.strip()
         self.classifications = self.classify()
 
         self.attackType = 0
@@ -137,7 +41,8 @@ class HashClassifier:
             userSelect = int(input('Which row would you like to send to the clipboard: '))
             if userSelect <= len(self.classifications):
                 hashcatMode = str(hashTypes[self.classifications[userSelect]]['hashcat'])
-                command = self.command(hashcatMode)
+                hashType = hashTypes[self.classifications[userSelect]]
+                command = self.command(hashType, hashcatMode)
                 pyperclip.copy(command)
                 if command == pyperclip.paste():
                     print('Successfully copied to the clipboard...')
@@ -145,10 +50,15 @@ class HashClassifier:
                 print('Please select a row that exists...')
                 self.clipBoard()
 
-    def command(self, submittedMode):
-        command = 'hashcat ' + '-m' + submittedMode + ' ' + '-a' + str(self.attackType) + ' ' + \
-                  '$(echo ' + self.submittedHash \
-                  + ' > value.hash && echo value.hash)' + ' ' + self.wordList
+    def command(self, submittedType, submittedMode):
+        if hashTypes[submittedType]['salt']:
+            command = 'hashcat ' + '-m' + submittedMode + ' ' + '-a' + str(self.attackType) + ' ' + \
+                      '$(echo ' + self.submittedHash + ':<salt or key>' \
+                      + ' > value.hash && echo value.hash)' + ' ' + self.wordList
+        else:
+            command = 'hashcat ' + '-m' + submittedMode + ' ' + '-a' + str(self.attackType) + ' ' + \
+                      '$(echo ' + self.submittedHash \
+                      + ' > value.hash && echo value.hash)' + ' ' + self.wordList
         return command
 
     def table(self):
@@ -159,12 +69,12 @@ class HashClassifier:
             hashType = classification
             hashcatMode = str(hashTypes[classification]['hashcat'])
             if hashcatMode != 'None':
-                command = self.command(hashcatMode)
+                command = self.command(hashType, hashcatMode)
             else:
                 command = hashcatMode
             table.rows.append([rowID, hashType, hashcatMode, command])
             rowID += 1
-        table.columns.width = [5, len(max(self.classifications, key=len)) + 2, 10, len(self.submittedHash) + 94]
+        table.columns.width = [5, len(max(self.classifications, key=len)) + 2, 10, len(self.submittedHash) + 107]
         print(table)
 
 
@@ -174,8 +84,11 @@ def main():
 
     if submittedHash:
         results = HashClassifier(submittedHash)
-        results.table()
-        results.clipBoard()
+        if results.classifications:
+            results.table()
+            results.clipBoard()
+        else:
+            print('No classifications were found...')
         if input('Again? (Y/N): ').lower() == 'y':
             main()
     else:
